@@ -1,16 +1,16 @@
 # Gradle files
 .gradle
 build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
+gradle/wrapper/gradle-wrapper.jar
+**/src/main/**/build/
+**/src/test/**/build/
 
 # YML/Properties files
 *.yml
 *.yaml
 *.properties
-!src/main/resources/application.yml
-!src/main/resources/application.properties
+src/main/resources/application.yml
+src/main/resources/application.properties
 
 # STS (Spring Tool Suite) files
 .apt_generated
@@ -21,8 +21,8 @@ build/
 .springBeans
 .sts4-cache
 bin/
-!**/src/main/**/bin/
-!**/src/test/**/bin/
+**/src/main/**/bin/
+**/src/test/**/bin/
 
 # IntelliJ IDEA files
 
@@ -31,8 +31,8 @@ bin/
 *.iml
 *.ipr
 out/
-!**/src/main/**/out/
-!**/src/test/**/out/
+**/src/main/**/out/
+**/src/test/**/out/
 
 # NetBeans files
 /nbproject/private/
