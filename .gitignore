@@ -1,0 +1,51 @@
+# Gradle files
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# YML/Properties files
+*.yml
+*.yaml
+*.properties
+!src/main/resources/application.yml
+!src/main/resources/application.properties
+
+# STS (Spring Tool Suite) files
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+# IntelliJ IDEA files
+
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# NetBeans files
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# VS Code files
+.vscode/
+
+# Log files
+*.log
+
+# Target folder (for some other build tools like Maven)
+target/
