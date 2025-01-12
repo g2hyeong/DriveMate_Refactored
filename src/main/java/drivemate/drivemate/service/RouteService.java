@@ -1,25 +1,37 @@
 package drivemate.drivemate.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import drivemate.drivemate.domain.Route;
+import drivemate.drivemate.dto.routeJSON.RouteFeatureCollectionDTO;
 import drivemate.drivemate.dto.RouteSetRequestDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Collections;
 
 @Service
+@RequiredArgsConstructor
 public class RouteService {
     private final RestTemplate restTemplate = new RestTemplate();
+    private final ObjectMapper objectMapper;
     private final String routeUrl = "https://apis.openapi.sk.com/tmap/routes";
 
     // application.properties 나 yml 에 정의된 값을 Spring Bean으로 만들고, 해당 값을 변수에 주입한다.
     @Value("${tmap.api.key}")
     private String appKey;
 
-    public String getRoute(RouteSetRequestDTO routeSetRequestDTO) {
+    /**
+     * @param routeSetRequestDTO 시작 좌표. 끝 좌표
+     * @return String
+     * TMAP API 서버에서 경로 데이터 JSON으로 받아옴
+     */
+    public JsonNode getRouteJSON(RouteSetRequestDTO routeSetRequestDTO) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("appKey", appKey);
@@ -47,9 +59,30 @@ public class RouteService {
         */
 
         // POST 요청 보내기
-        ResponseEntity<String> responseEntity = restTemplate.exchange(routeUrl, HttpMethod.POST, requestEntity, String.class);
+        ResponseEntity<JsonNode> responseEntity = restTemplate.exchange(routeUrl, HttpMethod.POST, requestEntity, JsonNode.class);
 
-        // 응답 반환
+        // JsonNode로 응답 반환
         return responseEntity.getBody();
+    }
+
+
+    /**
+     *
+      * @param routeJSON
+     *  @return RouteFeatureCollectionDTO
+     *  경로 JSON 데이터를 파싱해서 DTO에 저장한다.
+     */
+    public RouteFeatureCollectionDTO parseRouteJSON(JsonNode routeJSON){
+        try {
+            RouteFeatureCollectionDTO routeFeatureCollectionDTO =
+                    objectMapper.treeToValue(routeJSON, RouteFeatureCollectionDTO.class);
+            return routeFeatureCollectionDTO;
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to parse JSON to DTO",e);
+        }
+    }
+
+    public Route createRoute(RouteFeatureCollectionDTO dto){
+        return Route.fromDTO(dto);
     }
 }
