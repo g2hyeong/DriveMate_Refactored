@@ -3,17 +3,20 @@ package drivemate.drivemate.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import drivemate.drivemate.domain.Route;
-import drivemate.drivemate.dto.routeJSON.RouteFeatureCollectionDTO;
+import drivemate.drivemate.domain.*;
+import drivemate.drivemate.dto.route.RouteFeatureCollectionDTO;
 import drivemate.drivemate.dto.RouteSetRequestDTO;
+import drivemate.drivemate.dto.routeGeo.RouteGeoDTO;
+import drivemate.drivemate.dto.routeInfo.InfoFeatureCollectionDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +24,8 @@ public class RouteService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper;
     private final String routeUrl = "https://apis.openapi.sk.com/tmap/routes";
+    private final String trafficUrl = "https://apis.openapi.sk.com/tmap/traffic";
+    private final String geoURl = "https://apis.openapi.sk.com/tmap/geo/reversegeocoding";
 
     // application.properties 나 yml 에 정의된 값을 Spring Bean으로 만들고, 해당 값을 변수에 주입한다.
     @Value("${tmap.api.key}")
@@ -65,7 +70,6 @@ public class RouteService {
         return responseEntity.getBody();
     }
 
-
     /**
      *
       * @param routeJSON
@@ -74,9 +78,7 @@ public class RouteService {
      */
     public RouteFeatureCollectionDTO parseRouteJSON(JsonNode routeJSON){
         try {
-            RouteFeatureCollectionDTO routeFeatureCollectionDTO =
-                    objectMapper.treeToValue(routeJSON, RouteFeatureCollectionDTO.class);
-            return routeFeatureCollectionDTO;
+            return objectMapper.treeToValue(routeJSON, RouteFeatureCollectionDTO.class);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Failed to parse JSON to DTO",e);
         }
@@ -85,4 +87,119 @@ public class RouteService {
     public Route createRoute(RouteFeatureCollectionDTO dto){
         return Route.fromDTO(dto);
     }
+
+
+    /**
+     *
+     * @param lat
+     * @param lng
+     * @return JsonNode 형식으로 해당 좌표의 Info를 받아옴
+     */
+    public JsonNode getInfoJSON(Double lat, Double lng){
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        headers.set("appKey", appKey);
+
+        // URL에 쿼리 파라미터 포함
+        String urlWithParams = String.format(
+                "%s?version=1&centerLat=%f&centerLon=%f&trafficType=POINT&radius=1&zoomLevel=10",
+                trafficUrl, lat, lng
+        );
+
+        // HttpEntity는 헤더만 포함 (GET 요청은 보통 바디 없이 보냄)
+        HttpEntity<String> requestEntity = new HttpEntity<>(headers);
+
+        // GET 요청으로 변경된 URL과 함께 전송
+        ResponseEntity<JsonNode> responseEntity = restTemplate.exchange(urlWithParams, HttpMethod.GET, requestEntity, JsonNode.class);
+
+        return responseEntity.getBody();
+    }
+
+    /**
+     *
+     * @param infoNode
+     * @return Info JSON을 DTO로 변환한다
+     */
+
+    public InfoFeatureCollectionDTO parseInfoJSON(JsonNode infoNode){
+        try {
+            return objectMapper.treeToValue(infoNode, InfoFeatureCollectionDTO.class);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to parse JSON to DTO", e);
+        }
+    }
+
+    /**
+     *
+     * @param dto
+     * @return Info DTO를 SemiRouteInfo 엔티티로 변환한다.
+     */
+
+    public SemiRouteInfo createSemiRouteInfo(InfoFeatureCollectionDTO dto){
+        return SemiRouteInfo.fromDTO(dto);
+    }
+
+    /**
+     * @param route
+     * @return route 객체에서 파생되는 (SemiRoutePoint 마다 생성되는) SemiRouteInfo 객체를 연관관계 매핑한다.
+     */
+
+    @Async
+    public CompletableFuture<Route> setSemiRouteInfo(Route route){
+        for (SemiRoute point : route.getSemiRouteList()){
+            if (point.getClass() == SemiRoutePoint.class){
+                Double lat = point.getCoordinateList().get(0).getLatitude();
+                Double lng = point.getCoordinateList().get(0).getLongitude();
+                JsonNode jsonNode = getInfoJSON(lat, lng);
+                InfoFeatureCollectionDTO dto = parseInfoJSON(jsonNode);
+                SemiRouteInfo info = createSemiRouteInfo(dto);
+                info.setSemiRoute(point);
+            }
+        }
+        return CompletableFuture.completedFuture(route);
+    }
+
+    public JsonNode getGeoJSON(Double lat, Double lng){
+        // 헤더 설정
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        headers.set("appKey", appKey);
+
+        // URL에 쿼리 파라미터 포함
+        String urlWithParams = String.format(
+                "%s?version=1&&lat=%f&lon=%f&coordType=WGS84GEO&addressType=A02&newAddressExtend=Y",
+                geoURl, lat, lng
+        );
+
+        // HttpEntity는 헤더만 포함 (GET 요청은 보통 바디 없이 보냄)
+        HttpEntity<String> requestEntity = new HttpEntity<>(headers);
+
+        // GET 요청으로 변경된 URL과 함께 전송
+        ResponseEntity<JsonNode> responseEntity = restTemplate.exchange(urlWithParams, HttpMethod.GET, requestEntity, JsonNode.class);
+
+        return responseEntity.getBody();
+    }
+
+    public RouteGeoDTO parseGeoJSON(JsonNode geoNode){
+        try {
+            return objectMapper.treeToValue(geoNode, RouteGeoDTO.class);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Async
+    public CompletableFuture<Route> setSemiRouteSection(Route route){
+        for (SemiRoute point : route.getSemiRouteList()){
+            if (point.getClass() == SemiRoutePoint.class){
+                Double lat = point.getCoordinateList().get(0).getLatitude();
+                Double lng = point.getCoordinateList().get(0).getLongitude();
+                JsonNode jsonNode = getGeoJSON(lat, lng);
+                RouteGeoDTO dto = parseGeoJSON(jsonNode);
+                point.setSectionName(dto.getAddressInfo().getCity_do() + " " + dto.getAddressInfo().getGu_gun());
+            }
+        }
+        return CompletableFuture.completedFuture(route);
+    }
+
 }

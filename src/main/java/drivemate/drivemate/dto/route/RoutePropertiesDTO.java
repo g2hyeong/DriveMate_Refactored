@@ -1,6 +1,5 @@
-package drivemate.drivemate.dto.routeJSON;
+package drivemate.drivemate.dto.route;
 
-import jakarta.persistence.criteria.CriteriaBuilder;
 import lombok.Data;
 
 @Data

@@ -1,14 +1,11 @@
 package drivemate.drivemate.domain;
 
-import drivemate.drivemate.dto.routeJSON.RouteFeatureDTO;
-import drivemate.drivemate.dto.routeJSON.RouteGeometryDTO;
+import drivemate.drivemate.dto.route.RouteFeatureDTO;
+import drivemate.drivemate.dto.route.RouteGeometryDTO;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
 import lombok.Builder;
 import lombok.Getter;
-
-import java.util.List;
 
 @Entity
 @Getter
@@ -51,8 +48,8 @@ public class SemiRoutePoint extends SemiRoute{
 
         if (routeGeometryDTO.getCoordinates() != null) {
             Coordinate coordinate = Coordinate.builder()
-                    .latitude((Double) routeGeometryDTO.getCoordinates().get(0))
-                    .longitude((Double) routeGeometryDTO.getCoordinates().get(1))
+                    .latitude((Double) routeGeometryDTO.getCoordinates().get(1))
+                    .longitude((Double) routeGeometryDTO.getCoordinates().get(0))
                     .build();
             coordinate.setSemiRoute(semiRoutePoint);
         }

@@ -1,4 +1,4 @@
-package drivemate.drivemate.dto.routeJSON;
+package drivemate.drivemate.dto.route;
 
 import lombok.Data;
 

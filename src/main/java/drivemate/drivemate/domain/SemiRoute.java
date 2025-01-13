@@ -1,7 +1,7 @@
 package drivemate.drivemate.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import drivemate.drivemate.dto.routeJSON.RouteFeatureDTO;
+import drivemate.drivemate.dto.route.RouteFeatureDTO;
 import jakarta.persistence.*;
 import lombok.Getter;
 
@@ -49,6 +49,7 @@ public abstract class SemiRoute {
      *  메서드
      */
 
+
     public static SemiRoute fromDTO(RouteFeatureDTO dto){
         if ("LineString".equals(dto.getGeometry().getType())) {
             return SemiRouteLineString.fromDTO(dto);
@@ -56,6 +57,10 @@ public abstract class SemiRoute {
             return SemiRoutePoint.fromDTO(dto);
         }
         throw new IllegalArgumentException("Unknown SemiRoute type: " + dto.getGeometry().getType());
+    }
+
+    public void setSectionName(String sectionName) {
+        this.sectionName = sectionName;
     }
 
     public void setRoute(Route route) {
@@ -66,5 +71,7 @@ public abstract class SemiRoute {
     public void addCoordinate(Coordinate coordinate){
         this.coordinateList.add(coordinate);
     }
+
+    public void setSemiRouteInfo(SemiRouteInfo semiRouteInfo) {this.semiRouteInfo = semiRouteInfo;}
 
 }

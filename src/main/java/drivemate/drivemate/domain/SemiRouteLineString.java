@@ -1,7 +1,7 @@
 package drivemate.drivemate.domain;
 
-import drivemate.drivemate.dto.routeJSON.RouteFeatureDTO;
-import drivemate.drivemate.dto.routeJSON.RouteGeometryDTO;
+import drivemate.drivemate.dto.route.RouteFeatureDTO;
+import drivemate.drivemate.dto.route.RouteGeometryDTO;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 import lombok.Builder;
