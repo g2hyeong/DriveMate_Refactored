@@ -27,9 +27,9 @@ public class Coordinate {
     private Double latitude;
 
     @Builder
-    public Coordinate(Double longitude, Double latitude){
-        this.longitude = longitude;
+    public Coordinate(Double latitude, Double longitude){
         this.latitude = latitude;
+        this.longitude = longitude;
     }
 
     public Coordinate(){

@@ -55,8 +55,8 @@ public class SemiRouteLineString extends SemiRoute{
             for (Object coord : routeGeometryDTO.getCoordinates()) {
                 List<Double> coordinates = (List<Double>) coord;
                 Coordinate coordinate = Coordinate.builder()
-                        .latitude(coordinates.get(0))
-                        .longitude(coordinates.get(1))
+                        .latitude(coordinates.get(1))
+                        .longitude(coordinates.get(0))
                         .build();
                 coordinate.setSemiRoute(semiRouteLineString);
             }

@@ -4,18 +4,25 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import drivemate.drivemate.domain.*;
+import drivemate.drivemate.dto.pathResponse.PathRespondDTO;
 import drivemate.drivemate.dto.route.RouteFeatureCollectionDTO;
 import drivemate.drivemate.dto.RouteSetRequestDTO;
 import drivemate.drivemate.dto.routeGeo.RouteGeoDTO;
 import drivemate.drivemate.dto.routeInfo.InfoFeatureCollectionDTO;
+import drivemate.drivemate.repository.CoordinateRepository;
+import drivemate.drivemate.repository.RouteRepository;
+import drivemate.drivemate.repository.SemiRouteInfoRepository;
+import drivemate.drivemate.repository.SemiRouteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 @Service
@@ -23,6 +30,10 @@ import java.util.concurrent.CompletableFuture;
 public class RouteService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper;
+    private final RouteRepository routeRepository;
+    private final SemiRouteRepository semiRouteRepository;
+    private final SemiRouteInfoRepository semiRouteInfoRepository;
+    private final CoordinateRepository coordinateRepository;
     private final String routeUrl = "https://apis.openapi.sk.com/tmap/routes";
     private final String trafficUrl = "https://apis.openapi.sk.com/tmap/traffic";
     private final String geoURl = "https://apis.openapi.sk.com/tmap/geo/reversegeocoding";
@@ -146,18 +157,25 @@ public class RouteService {
 
     @Async
     public CompletableFuture<Route> setSemiRouteInfo(Route route){
-        for (SemiRoute point : route.getSemiRouteList()){
-            if (point.getClass() == SemiRoutePoint.class){
-                Double lat = point.getCoordinateList().get(0).getLatitude();
-                Double lng = point.getCoordinateList().get(0).getLongitude();
+        for (SemiRoute lineString : route.getSemiRouteList()){
+            if (lineString.getClass() == SemiRouteLineString.class){
+                Double lat = lineString.getCoordinateList().get(0).getLatitude();
+                Double lng = lineString.getCoordinateList().get(0).getLongitude();
                 JsonNode jsonNode = getInfoJSON(lat, lng);
                 InfoFeatureCollectionDTO dto = parseInfoJSON(jsonNode);
                 SemiRouteInfo info = createSemiRouteInfo(dto);
-                info.setSemiRoute(point);
+                info.setSemiRoute(lineString);
             }
         }
         return CompletableFuture.completedFuture(route);
     }
+
+    /**
+     *
+     * @param lat
+     * @param lng
+     * @return JSON 형식으로 좌표에 대응하는 주소값을 받아옴
+     */
 
     public JsonNode getGeoJSON(Double lat, Double lng){
         // 헤더 설정
@@ -180,6 +198,12 @@ public class RouteService {
         return responseEntity.getBody();
     }
 
+    /**
+     *
+     * @param geoNode
+     * @return JsonNode를 DTO로 변환한다.
+     */
+
     public RouteGeoDTO parseGeoJSON(JsonNode geoNode){
         try {
             return objectMapper.treeToValue(geoNode, RouteGeoDTO.class);
@@ -188,18 +212,46 @@ public class RouteService {
         }
     }
 
+    /**
+     *
+     * @param route
+     * @return 각 SemiRoutePoint에 대응하는 주소값을 외부 API를 통해 받아와 저장한다
+     */
+
     @Async
     public CompletableFuture<Route> setSemiRouteSection(Route route){
-        for (SemiRoute point : route.getSemiRouteList()){
-            if (point.getClass() == SemiRoutePoint.class){
-                Double lat = point.getCoordinateList().get(0).getLatitude();
-                Double lng = point.getCoordinateList().get(0).getLongitude();
+        for (SemiRoute semiRoute : route.getSemiRouteList()) {
+            if (semiRoute.getClass() == SemiRouteLineString.class) {
+                Double lat = semiRoute.getCoordinateList().get(0).getLatitude();
+                Double lng = semiRoute.getCoordinateList().get(0).getLongitude();
                 JsonNode jsonNode = getGeoJSON(lat, lng);
                 RouteGeoDTO dto = parseGeoJSON(jsonNode);
-                point.setSectionName(dto.getAddressInfo().getCity_do() + " " + dto.getAddressInfo().getGu_gun());
+                semiRoute.setSectionName(dto.getAddressInfo().getCity_do() + " " + dto.getAddressInfo().getGu_gun());
             }
         }
         return CompletableFuture.completedFuture(route);
     }
 
+    /**
+     *
+     * @param route
+     * @return route batch insert 테스트를 위한 로직
+     */
+
+    @Transactional
+    public Route saveRouteWithBatch(Route route){
+        routeRepository.save(route);
+        List<SemiRoute> semiRouteList = route.getSemiRouteList();
+        semiRouteRepository.saveAll(semiRouteList);
+        for (SemiRoute semiRoute : semiRouteList){
+            if(semiRoute.getClass() == SemiRouteLineString.class)
+                semiRouteInfoRepository.save(semiRoute.getSemiRouteInfo());
+            coordinateRepository.saveAll(semiRoute.getCoordinateList());
+        }
+        return route;
+    }
+
+    public PathRespondDTO createPathRespondDTO(Route route){
+        return PathRespondDTO.fromRoute(route);
+    }
 }
